@@ -1,0 +1,6 @@
+{
+  "name": "BidSure AI - SIH 26100",
+  "description": "Government Multi-Portal Verification Hub for GeM procurement compliance, automated fraud screening, and vendor eligibility validation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
