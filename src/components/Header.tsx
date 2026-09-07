@@ -35,7 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
   }, []);
 
   return (
-    <header className="fixed top-0 left-0 lg:left-sidebar-width-expanded right-0 h-header-height bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-gutter-md lg:px-gutter-lg border-b border-outline-variant/20">
+    <header className="fixed top-navbar-height left-0 right-0 h-header-height bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-30 flex items-center justify-between px-gutter-md lg:px-gutter-lg border-b border-outline-variant/20 w-full max-w-full">
       {/* Left side items */}
       <div className="flex items-center gap-gutter-sm lg:gap-gutter-md">
         {/* Mobile Hamburger */}

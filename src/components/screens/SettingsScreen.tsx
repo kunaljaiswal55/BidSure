@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavPath } from '../../types';
 
 interface SettingsScreenProps {
   onNavigate: (path: NavPath) => void;
 }
+
+const LS_KEY = 'bidsure_gateway_config';
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onNavigate }) => {
   const [latencyThrottle, setLatencyThrottle] = useState(178);
@@ -11,7 +13,22 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onNavigate }) =>
   const [strictMiiFilter, setStrictMiiFilter] = useState(true);
   const [saved, setSaved] = useState(false);
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) {
+        const cfg = JSON.parse(raw) as { latencyThrottle?: number; sandboxMode?: boolean; strictMiiFilter?: boolean };
+        if (typeof cfg.latencyThrottle === 'number') setLatencyThrottle(cfg.latencyThrottle);
+        if (typeof cfg.sandboxMode === 'boolean') setSandboxMode(cfg.sandboxMode);
+        if (typeof cfg.strictMiiFilter === 'boolean') setStrictMiiFilter(cfg.strictMiiFilter);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   const handleSave = () => {
+    localStorage.setItem(LS_KEY, JSON.stringify({ latencyThrottle, sandboxMode, strictMiiFilter }));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };

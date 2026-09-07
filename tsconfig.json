@@ -10,6 +10,8 @@
       "DOM.Iterable"
     ],
     "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "types": ["node", "vite/client"],
     "moduleResolution": "bundler",
     "isolatedModules": true,
     "moduleDetection": "force",

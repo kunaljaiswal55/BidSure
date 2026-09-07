@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Bidder, Tender, NavPath } from '../../types';
+import { runForensicScan, ForensicResult } from '../../services/gemini';
 
 interface AiVerificationScreenProps {
   selectedBidder: Bidder;
@@ -13,27 +14,19 @@ export const AiVerificationScreen: React.FC<AiVerificationScreenProps> = ({
   onNavigate
 }) => {
   const [scanning, setScanning] = useState(false);
-  const [scanResult, setScanResult] = useState<{
-    tamperingRisk: string;
-    circularTrading: string;
-    shellCompanyIndex: string;
-    udinMatch: string;
-    summary: string;
-  } | null>(null);
+  const [scanResult, setScanResult] = useState<ForensicResult | null>(null);
 
-  const handleRunScan = () => {
+  const handleRunScan = async () => {
     setScanning(true);
     setScanResult(null);
-    setTimeout(() => {
-      setScanning(false);
-      setScanResult({
-        tamperingRisk: 'LOW (0.04)',
-        circularTrading: 'CLEAN - Independent Tax Nodes',
-        shellCompanyIndex: 'PASS - Active Physical Establishment (EPFO 142 Headcount)',
-        udinMatch: 'CONFIRMED - ICAI Registry UDIN 26034112ABCD9902',
-        summary: `Bidder ${selectedBidder.name} exhibits authentic document forensics. No pixel manipulation detected in balance sheets or OEM authorization letters. DPIIT local content disparity remains the sole statutory audit flag.`
-      });
-    }, 1200);
+    const result = await runForensicScan({
+      bidderName: selectedBidder.name,
+      cin: selectedBidder.cin,
+      pan: selectedBidder.pan,
+      tenderCode: activeTender.code,
+    });
+    setScanResult(result);
+    setScanning(false);
   };
 
   return (
@@ -129,6 +122,15 @@ export const AiVerificationScreen: React.FC<AiVerificationScreenProps> = ({
 
         {scanResult ? (
           <div className="space-y-4 animate-in fade-in duration-200">
+            <div className="flex items-center justify-end">
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                  scanResult.source === 'gemini' ? 'bg-secondary text-white' : 'bg-surface-container text-on-surface-variant'
+                }`}
+              >
+                {scanResult.source === 'gemini' ? 'Gemini 2.0 Flash' : 'Sandbox Mock'}
+              </span>
+            </div>
             <div className="p-3 bg-secondary-fixed/20 rounded-lg border border-secondary/20 text-xs leading-relaxed text-on-surface">
               <strong className="text-secondary font-bold">Executive AI Assessment: </strong>
               {scanResult.summary}

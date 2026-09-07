@@ -11,6 +11,8 @@ export type NavPath =
   | 'audit-trail'
   | 'settings';
 
+export type PortalPayload = Record<string, unknown>;
+
 export interface PortalData {
   id: string;
   name: string;
@@ -26,8 +28,8 @@ export interface PortalData {
   responseTime: string;
   endpoint: string;
   url: string;
-  req: Record<string, any>;
-  res: Record<string, any>;
+  req: PortalPayload;
+  res: PortalPayload;
   lastVerified?: string;
   category: 'tax' | 'corporate' | 'labor' | 'standards' | 'procurement' | 'identity';
 }

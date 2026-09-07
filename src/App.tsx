@@ -6,6 +6,8 @@
 import React, { useState } from 'react';
 import { NavPath, PortalData, Bidder, Tender, AuditLogEntry } from './types';
 import { INITIAL_PORTALS, TENDERS, BIDDERS, INITIAL_AUDIT_LOGS } from './data/portalData';
+import { formatGovTimestamp } from './utils/format';
+import { reverifyPortal, verifyAllPortals, DEFAULT_GATEWAY_CONFIG, GatewayConfig } from './services/gateway';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { PortalVerificationScreen } from './components/screens/PortalVerificationScreen';
@@ -30,99 +32,48 @@ export default function App() {
   const [isVerifyingAll, setIsVerifyingAll] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Format current date/time in authentic government timestamp format: "07 Sep 2026, 08:14 PM"
-  const getFormattedTimestamp = () => {
-    const d = new Date();
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = months[d.getMonth()];
-    const year = d.getFullYear() + 2; // Keep in 2026 era matching prototype
-    let hours = d.getHours();
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    const strHours = String(hours).padStart(2, '0');
-    return `${day} ${month} ${year}, ${strHours}:${minutes} ${ampm}`;
-  };
+  const getFormattedTimestamp = () => formatGovTimestamp(new Date());
 
-  const handleReverifyPortal = (portalId: string) => {
-    setVerifyingPortals((prev) => ({ ...prev, [portalId]: true }));
-
-    setTimeout(() => {
-      const nowFormatted = getFormattedTimestamp();
-      const randomLatency = Math.floor(110 + Math.random() * 95) + 'ms';
-
-      setPortals((prev) => {
-        const existing = prev[portalId];
-        if (!existing) return prev;
+  const getGatewayConfig = (): GatewayConfig => {
+    try {
+      const raw = localStorage.getItem('bidsure_gateway_config');
+      if (raw) {
+        const parsed = JSON.parse(raw) as { sandboxMode?: boolean; strictMiiFilter?: boolean; latencyThrottle?: number };
         return {
-          ...prev,
-          [portalId]: {
-            ...existing,
-            timestamp: nowFormatted,
-            responseTime: randomLatency,
-            req: {
-              ...existing.req,
-              meta: {
-                ...existing.req.meta,
-                timestamp: new Date().toISOString()
-              }
-            }
-          }
+          mode: parsed.sandboxMode === false ? 'live' : 'sandbox',
+          baseUrl: DEFAULT_GATEWAY_CONFIG.baseUrl,
+          latencyThrottleMs: parsed.latencyThrottle ?? DEFAULT_GATEWAY_CONFIG.latencyThrottleMs,
+          strictMii: parsed.strictMiiFilter ?? DEFAULT_GATEWAY_CONFIG.strictMii,
         };
-      });
-
-      // Add to audit trail
-      const newLog: AuditLogEntry = {
-        id: `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
-        timestamp: nowFormatted,
-        officer: 'R. Sharma (JS-Proc.)',
-        portal: portals[portalId]?.shortName || portalId.toUpperCase(),
-        action: `Live API Re-Verification query completed for ${selectedBidder.name}`,
-        status: portalId === 'dpiit' ? 'FLAG' : 'SUCCESS',
-        latency: randomLatency,
-        sha256Digest: Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')
-      };
-
-      setAuditLogs((prev) => [newLog, ...prev]);
-      setVerifyingPortals((prev) => ({ ...prev, [portalId]: false }));
-    }, 600);
+      }
+    } catch {
+      /* ignore */
+    }
+    return DEFAULT_GATEWAY_CONFIG;
   };
 
-  const handleVerifyAll = () => {
+  const handleReverifyPortal = async (portalId: string) => {
+    setVerifyingPortals((prev) => ({ ...prev, [portalId]: true }));
+    try {
+      const cfg = getGatewayConfig();
+      const { portals: nextPortals, log } = await reverifyPortal(portals, portalId, selectedBidder, activeTender, cfg);
+      setPortals(nextPortals);
+      setAuditLogs((prev) => [log, ...prev]);
+    } finally {
+      setVerifyingPortals((prev) => ({ ...prev, [portalId]: false }));
+    }
+  };
+
+  const handleVerifyAll = async () => {
     setIsVerifyingAll(true);
-
-    setTimeout(() => {
-      const nowFormatted = getFormattedTimestamp();
-      setPortals((prev) => {
-        const next: Record<string, PortalData> = {};
-        Object.keys(prev).forEach((key) => {
-          const item = prev[key];
-          const randomLatency = Math.floor(105 + Math.random() * 90) + 'ms';
-          next[key] = {
-            ...item,
-            timestamp: nowFormatted,
-            responseTime: randomLatency
-          };
-        });
-        return next;
-      });
-
-      const batchLog: AuditLogEntry = {
-        id: `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
-        timestamp: nowFormatted,
-        officer: 'R. Sharma (JS-Proc.)',
-        portal: 'Batch Gateway (13 Nodes)',
-        action: `Batch Multi-Portal Sync executed across all sovereign endpoints for tender ${activeTender.code}`,
-        status: 'SUCCESS',
-        latency: '178ms (Avg)',
-        sha256Digest: Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')
-      };
-
-      setAuditLogs((prev) => [batchLog, ...prev]);
+    try {
+      const cfg = getGatewayConfig();
+      const { portals: nextPortals, log } = await verifyAllPortals(portals, activeTender, cfg);
+      setPortals(nextPortals);
+      setAuditLogs((prev) => [log, ...prev]);
+    } finally {
       setIsVerifyingAll(false);
-    }, 1200);
+    }
   };
 
   const handleBidderChange = (newBidder: Bidder) => {
@@ -202,27 +153,28 @@ export default function App() {
   };
 
   return (
-    <div className="bg-surface font-body-md text-on-surface antialiased min-h-screen">
-      {/* Sidebar Navigation */}
+    <div className="bg-surface font-body-md text-on-surface antialiased min-h-screen w-full max-w-full overflow-x-hidden">
+      {/* Top Navbar – replaces left sidebar (no horizontal overlap) */}
       <Sidebar
         currentPath={currentPath}
         onNavigate={(path) => setCurrentPath(path)}
         isOpenMobile={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
+        onToggleMobile={() => setMobileMenuOpen((v) => !v)}
       />
 
-      {/* Main Content Area (shifted right by sidebar on desktop) */}
-      <div className="lg:pl-sidebar-width-expanded min-h-screen flex flex-col">
-        {/* Fixed Header */}
+      {/* Main Content Area – starts AFTER navbar, no left sidebar offset */}
+      <div className="pt-navbar-height min-h-screen flex flex-col w-full max-w-full">
+        {/* Fixed Header below navbar */}
         <Header
           tenders={TENDERS}
           activeTender={activeTender}
           onSelectTender={handleSelectTender}
-          onOpenMobileMenu={() => setMobileMenuOpen(true)}
+          onOpenMobileMenu={() => setMobileMenuOpen((v) => !v)}
         />
 
-        {/* Dynamic Screen View */}
-        <main className="w-full pt-header-height px-gutter-md lg:px-container-padding bg-surface min-h-screen">
+        {/* Dynamic Screen View – offset for fixed header */}
+        <main className="w-full max-w-full pt-header-height px-gutter-md lg:px-container-padding bg-surface min-h-screen overflow-x-hidden">
           {currentPath === 'portal-verification' && (
             <PortalVerificationScreen
               portals={portals}

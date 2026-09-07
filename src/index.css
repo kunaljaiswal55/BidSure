@@ -86,6 +86,22 @@
 .left-sidebar-width-expanded { left: 280px; }
 .h-header-height { height: 64px; }
 .pt-header-height { padding-top: 64px; }
+.h-navbar-height { height: 56px; }
+.pt-navbar-height { padding-top: 56px; }
+.top-navbar-height { top: 56px; }
+
+/* Responsive variants – explicit media queries because plain CSS classes don't auto-generate lg: variants in Tailwind v4 */
+@media (min-width: 1024px) {
+  .lg\:pl-sidebar-width-expanded { padding-left: 280px; }
+  .lg\:left-sidebar-width-expanded { left: 280px; }
+  .lg\:w-sidebar-width-expanded { width: 280px; }
+}
+
+/* Navbar offset helpers for fixed header below navbar */
+.pt-header-and-navbar { padding-top: 120px; } /* 56 + 64 */
+@media (min-width: 1024px) {
+  .lg\:pt-header-and-navbar { padding-top: 120px; }
+}
 .px-gutter-xs { padding-left: 0.25rem; padding-right: 0.25rem; }
 .px-gutter-sm { padding-left: 0.5rem; padding-right: 0.5rem; }
 .px-gutter-md { padding-left: 1rem; padding-right: 1rem; }

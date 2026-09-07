@@ -1,5 +1,6 @@
 import React from 'react';
 import { Bidder, Tender } from '../../types';
+import { useEscape, useLockBodyScroll } from '../../hooks/useEscape';
 
 interface DpiitAuditModalProps {
   isOpen: boolean;
@@ -16,11 +17,22 @@ export const DpiitAuditModal: React.FC<DpiitAuditModalProps> = ({
   tender,
   onIssueNotice
 }) => {
+  useEscape(isOpen, onClose);
+  useLockBodyScroll(isOpen);
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-      <div className="bg-surface-container-lowest rounded-xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-error/30 animate-in fade-in zoom-in-95 duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="DPIIT MII audit flag"
+    >
+      <div
+        className="bg-surface-container-lowest rounded-xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-error/30 animate-in fade-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="p-gutter-md border-b border-outline-variant/20 flex items-center justify-between bg-error-container/30">
           <div className="flex items-center gap-2">

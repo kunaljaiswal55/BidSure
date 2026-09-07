@@ -1,8 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { PortalData, Bidder, Tender, AuditLogEntry } from '../../types';
 import { HealthCheckModal } from '../modals/HealthCheckModal';
 import { SyncLogsModal } from '../modals/SyncLogsModal';
 import { DpiitAuditModal } from '../modals/DpiitAuditModal';
+import { Toast, ToastData } from '../shared/Toast';
 
 interface PortalVerificationScreenProps {
   portals: Record<string, PortalData>;
@@ -30,7 +31,7 @@ export const PortalVerificationScreen: React.FC<PortalVerificationScreenProps> =
   allBidders
 }) => {
   const [activePortalKey, setActivePortalKey] = useState<string>('gem');
-  const [toastMessage, setToastMessage] = useState<{ title: string; desc: string; icon: string } | null>(null);
+  const [toastMessage, setToastMessage] = useState<ToastData | null>(null);
   const [isHealthCheckOpen, setIsHealthCheckOpen] = useState(false);
   const [isSyncLogsOpen, setIsSyncLogsOpen] = useState(false);
   const [isDpiitAuditOpen, setIsDpiitAuditOpen] = useState(false);
@@ -41,12 +42,9 @@ export const PortalVerificationScreen: React.FC<PortalVerificationScreenProps> =
 
   const activePortal = portals[activePortalKey] || portals.gem;
 
-  const triggerToast = (title: string, desc: string, icon = 'check_circle') => {
+  const triggerToast = useCallback((title: string, desc: string, icon = 'check_circle') => {
     setToastMessage({ title, desc, icon });
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 3500);
-  };
+  }, []);
 
   const handleInspect = (portalKey: string) => {
     setActivePortalKey(portalKey);
@@ -591,25 +589,7 @@ export const PortalVerificationScreen: React.FC<PortalVerificationScreenProps> =
         </div>
       </div>
 
-      {/* Notification Toast for Interactive Actions */}
-      {toastMessage && (
-        <div
-          className="fixed bottom-6 right-6 bg-primary text-on-primary px-4 py-3 rounded-lg shadow-xl flex items-center gap-3 z-50 animate-in fade-in slide-in-from-bottom-3 duration-200 border border-outline-variant/20"
-          id="status-toast"
-        >
-          <span className="material-symbols-outlined text-secondary-fixed text-[22px]" id="toast-icon">
-            {toastMessage.icon}
-          </span>
-          <div className="flex flex-col">
-            <span className="font-title-md text-title-md font-semibold" id="toast-title">
-              {toastMessage.title}
-            </span>
-            <span className="font-body-sm text-body-sm text-on-primary-container" id="toast-msg">
-              {toastMessage.desc}
-            </span>
-          </div>
-        </div>
-      )}
+      <Toast toast={toastMessage} onDismiss={() => setToastMessage(null)} />
 
       {/* Modals */}
       <HealthCheckModal
