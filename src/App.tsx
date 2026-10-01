@@ -4,12 +4,15 @@
  */
 
 import React, { useState } from 'react';
-import { NavPath, PortalData, Bidder, Tender, AuditLogEntry } from './types';
+import { NavPath, ViewMode, PortalData, Bidder, Tender, AuditLogEntry, ClientDocument, ClientTicket } from './types';
 import { INITIAL_PORTALS, TENDERS, BIDDERS, INITIAL_AUDIT_LOGS } from './data/portalData';
+import { INITIAL_CLIENT_DOCUMENTS, INITIAL_CLIENT_TICKETS } from './data/clientPortalData';
 import { formatGovTimestamp } from './utils/format';
 import { reverifyPortal, verifyAllPortals, DEFAULT_GATEWAY_CONFIG, GatewayConfig } from './services/gateway';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
+
+// Evaluator Screens
 import { PortalVerificationScreen } from './components/screens/PortalVerificationScreen';
 import { DashboardScreen } from './components/screens/DashboardScreen';
 import { TendersScreen } from './components/screens/TendersScreen';
@@ -22,7 +25,14 @@ import { ReportsScreen } from './components/screens/ReportsScreen';
 import { AuditTrailScreen } from './components/screens/AuditTrailScreen';
 import { SettingsScreen } from './components/screens/SettingsScreen';
 
+// Client Screens
+import { ClientDashboardScreen } from './components/screens/ClientDashboardScreen';
+import { ClientUploadScreen } from './components/screens/ClientUploadScreen';
+import { ClientReportScreen } from './components/screens/ClientReportScreen';
+import { ClientQueriesScreen } from './components/screens/ClientQueriesScreen';
+
 export default function App() {
+  const [viewMode, setViewMode] = useState<ViewMode>('evaluator');
   const [currentPath, setCurrentPath] = useState<NavPath>('portal-verification');
   const [portals, setPortals] = useState<Record<string, PortalData>>(INITIAL_PORTALS);
   const [activeTender, setActiveTender] = useState<Tender>(TENDERS[0]);
@@ -32,7 +42,9 @@ export default function App() {
   const [isVerifyingAll, setIsVerifyingAll] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const getFormattedTimestamp = () => formatGovTimestamp(new Date());
+  // Client Portal State
+  const [clientDocuments, setClientDocuments] = useState<ClientDocument[]>(INITIAL_CLIENT_DOCUMENTS);
+  const [clientTickets, setClientTickets] = useState<ClientTicket[]>(INITIAL_CLIENT_TICKETS);
 
   const getGatewayConfig = (): GatewayConfig => {
     try {
@@ -50,6 +62,15 @@ export default function App() {
       /* ignore */
     }
     return DEFAULT_GATEWAY_CONFIG;
+  };
+
+  const handleToggleViewMode = (mode: ViewMode) => {
+    setViewMode(mode);
+    if (mode === 'client') {
+      setCurrentPath('client-dashboard');
+    } else {
+      setCurrentPath('portal-verification');
+    }
   };
 
   const handleReverifyPortal = async (portalId: string) => {
@@ -79,7 +100,6 @@ export default function App() {
   const handleBidderChange = (newBidder: Bidder) => {
     setSelectedBidder(newBidder);
 
-    // Update portal request schemas with new bidder's credentials
     setPortals((prev) => {
       const updated = { ...prev };
       if (updated.gem) {
@@ -152,18 +172,55 @@ export default function App() {
     setActiveTender(tender);
   };
 
+  // Client Handlers
+  const handleUploadDocument = (doc: ClientDocument) => {
+    setClientDocuments((prev) => [doc, ...prev]);
+  };
+
+  const handleRemoveDocument = (docId: string) => {
+    setClientDocuments((prev) => prev.filter((d) => d.id !== docId));
+  };
+
+  const handleAddTicket = (ticket: ClientTicket) => {
+    setClientTickets((prev) => [ticket, ...prev]);
+  };
+
+  const handleAddTicketMessage = (ticketId: string, messageText: string) => {
+    setClientTickets((prev) =>
+      prev.map((t) => {
+        if (t.id === ticketId) {
+          const newMsg = {
+            id: `msg-${Date.now()}`,
+            sender: 'Client' as const,
+            senderRole: `${selectedBidder.name} (Bidder)`,
+            message: messageText,
+            timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16),
+          };
+          return {
+            ...t,
+            updatedAt: new Date().toISOString().replace('T', ' ').slice(0, 16),
+            messages: [...t.messages, newMsg],
+          };
+        }
+        return t;
+      })
+    );
+  };
+
   return (
     <div className="bg-surface font-body-md text-on-surface antialiased min-h-screen w-full max-w-full overflow-x-hidden">
-      {/* Top Navbar – replaces left sidebar (no horizontal overlap) */}
+      {/* Top Navbar */}
       <Sidebar
         currentPath={currentPath}
         onNavigate={(path) => setCurrentPath(path)}
+        viewMode={viewMode}
+        onToggleViewMode={handleToggleViewMode}
         isOpenMobile={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
         onToggleMobile={() => setMobileMenuOpen((v) => !v)}
       />
 
-      {/* Main Content Area – starts AFTER navbar, no left sidebar offset */}
+      {/* Main Content Area */}
       <div className="pt-navbar-height min-h-screen flex flex-col w-full max-w-full">
         {/* Fixed Header below navbar */}
         <Header
@@ -173,8 +230,9 @@ export default function App() {
           onOpenMobileMenu={() => setMobileMenuOpen((v) => !v)}
         />
 
-        {/* Dynamic Screen View – offset for fixed header */}
+        {/* Dynamic Screen View */}
         <main className="w-full max-w-full pt-header-height px-gutter-md lg:px-container-padding bg-surface min-h-screen overflow-x-hidden">
+          {/* Evaluator Screens */}
           {currentPath === 'portal-verification' && (
             <PortalVerificationScreen
               portals={portals}
@@ -265,6 +323,49 @@ export default function App() {
 
           {currentPath === 'settings' && (
             <SettingsScreen
+              onNavigate={(path) => setCurrentPath(path)}
+            />
+          )}
+
+          {/* Client Screens */}
+          {currentPath === 'client-dashboard' && (
+            <ClientDashboardScreen
+              clientBidder={selectedBidder}
+              activeTender={activeTender}
+              documents={clientDocuments}
+              tickets={clientTickets}
+              onNavigate={(path) => setCurrentPath(path)}
+            />
+          )}
+
+          {currentPath === 'client-upload' && (
+            <ClientUploadScreen
+              documents={clientDocuments}
+              onUploadDocument={handleUploadDocument}
+              onRemoveDocument={handleRemoveDocument}
+              activeTender={activeTender}
+              clientBidder={selectedBidder}
+              onNavigate={(path) => setCurrentPath(path)}
+            />
+          )}
+
+          {currentPath === 'client-report' && (
+            <ClientReportScreen
+              clientBidder={selectedBidder}
+              activeTender={activeTender}
+              portals={portals}
+              documents={clientDocuments}
+              onNavigate={(path) => setCurrentPath(path)}
+            />
+          )}
+
+          {currentPath === 'client-queries' && (
+            <ClientQueriesScreen
+              tickets={clientTickets}
+              onAddTicket={handleAddTicket}
+              onAddMessage={handleAddTicketMessage}
+              activeTender={activeTender}
+              clientBidder={selectedBidder}
               onNavigate={(path) => setCurrentPath(path)}
             />
           )}

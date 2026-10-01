@@ -1,3 +1,5 @@
+export type ViewMode = 'evaluator' | 'client';
+
 export type NavPath = 
   | 'dashboard'
   | 'tenders'
@@ -9,7 +11,11 @@ export type NavPath =
   | 'bid-comparison'
   | 'reports'
   | 'audit-trail'
-  | 'settings';
+  | 'settings'
+  | 'client-dashboard'
+  | 'client-upload'
+  | 'client-report'
+  | 'client-queries';
 
 export type PortalPayload = Record<string, unknown>;
 
@@ -76,3 +82,51 @@ export interface AuditLogEntry {
   latency: string;
   sha256Digest: string;
 }
+
+export interface ClientDocument {
+  id: string;
+  name: string;
+  category: 'financial' | 'tax' | 'corporate' | 'technical' | 'emd';
+  categoryLabel: string;
+  sizeFormatted: string;
+  mimeType: string;
+  uploadTimestamp: string;
+  sha256Hash: string;
+  status: 'processing' | 'validated' | 'flagged' | 'rejected';
+  extractedData?: {
+    pan?: string;
+    gstin?: string;
+    cin?: string;
+    declaredMiiPercent?: number;
+    turnoverAmount?: string;
+  };
+  validationMessage?: string;
+  ocrRawText?: string;
+  fileDataUrl?: string;
+}
+
+export interface ClientTicketMessage {
+  id: string;
+  sender: 'Client' | 'Procurement Officer' | 'AI Assistant';
+  senderRole?: string;
+  message: string;
+  timestamp: string;
+  attachments?: string[];
+}
+
+export interface ClientTicket {
+  id: string;
+  ticketNumber: string;
+  type: 'Query' | 'Grievance' | 'Audit Appeal';
+  tenderId: string;
+  tenderCode: string;
+  subject: string;
+  description: string;
+  category: string;
+  status: 'Open' | 'Under Review' | 'Information Requested' | 'Resolved' | 'Closed';
+  priority: 'Low' | 'Medium' | 'High' | 'Urgent';
+  createdAt: string;
+  updatedAt: string;
+  messages: ClientTicketMessage[];
+}
+
